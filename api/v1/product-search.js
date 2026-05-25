@@ -513,8 +513,7 @@ JSON şeması:
       const ai = await callOpenAI({
         model,
         tools: [{ type: "web_search" }],
-        input: prompt,
-        text: { format: { type: "json_object" } }
+        input: prompt
       }, 45000);
 
       const parsed = parseJsonFromText(outputTextFromOpenAI(ai));
