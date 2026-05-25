@@ -1,57 +1,59 @@
-# EtiketRadar Backend
+# EtiketRadar Backend - Tavily + Gemini
 
-Bu backend, iOS uygulamasındaki iki alanı karşılar:
+Bu backend OpenAI kullanmaz.
 
-- `POST /v1/extract-label`
-- `POST /v1/product-search`
+- Web araması: Tavily API
+- Ucuz özetleme/JSON düzenleme: Gemini Flash-Lite
+- OCR: iPhone uygulamasında Apple Vision ile cihaz üzerinde yapılır
 
-## iPhone uygulamasına yazılacak değerler
-
-Vercel deploy sonrası örnek domain şu şekilde olur:
-
-```text
-https://etiket-radar-backend.vercel.app/
-```
-
-Uygulamada:
+## Endpointler
 
 ```text
-Demo modu: Kapalı
-AI ile alanları doğrula: Açık
-Fiyat arama URL: https://etiket-radar-backend.vercel.app/
-AI okuma URL: https://etiket-radar-backend.vercel.app/
-API anahtarı: APP_API_KEY değeriniz
+GET  /
+GET  /v1/debug
+POST /v1/medicine-search
+POST /v1/label-search
 ```
 
-Önemli: URL sonuna `/v1/product-search` veya `/v1/extract-label` eklemeyin. iOS uygulaması bu endpoint yollarını otomatik ekliyor.
+## Vercel Environment Variables
 
-## Vercel'e kurulum
-
-1. Bu klasörü GitHub'a yeni repo olarak yükleyin.
-2. Vercel hesabı açın ve GitHub repo'yu Import edin.
-3. Environment Variables bölümüne şunları ekleyin:
+Vercel > Project > Settings > Environment Variables bölümüne ekle:
 
 ```text
 APP_API_KEY=etiket-radar-123456
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-5.5
+TAVILY_API_KEY=tvly-...
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.5-flash-lite
 ```
 
-4. Deploy edin.
-5. Deploy domainini iPhone uygulamasında hem Fiyat arama URL hem AI okuma URL alanına yazın.
+`GEMINI_API_KEY` boş bırakılırsa backend yine Tavily sonuçlarını döndürür; fakat kullanım talimatı / yan etki özetleri daha zayıf olur.
 
-## Güvenlik
+## iPhone uygulamasındaki ayarlar
 
-OpenAI API anahtarını iPhone uygulamasına yazmayın. `OPENAI_API_KEY` sadece backend ortam değişkeninde kalmalıdır. Uygulamadaki `API anahtarı`, backendin kendi basit koruma anahtarıdır: `APP_API_KEY`.
+```text
+Backend URL:
+https://etiket-radar-backend.vercel.app/
+
+API anahtarı:
+etiket-radar-123456
+```
 
 ## Test
 
-Deploy sonrası şu komutla test edebilirsiniz:
-
 ```bash
-curl -X POST "https://DOMAININIZ.vercel.app/v1/product-search" \
+curl -X POST "https://DOMAIN.vercel.app/v1/medicine-search" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer etiket-radar-123456" \
-  -d '{"query":"Huawei FreeBuds 6i siyah","brand":"Huawei","model":"FreeBuds 6i","productName":"Bluetooth kulaklık","currencyCode":"TRY"}'
+  -d '{"query":"Majezik 100 mg"}'
 ```
 
+```bash
+curl -X POST "https://DOMAIN.vercel.app/v1/label-search" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer etiket-radar-123456" \
+  -d '{"query":"Sony WH-CH720N siyah"}'
+```
+
+## Not
+
+İlaç bilgileri doktor/eczacı tavsiyesi değildir. Uygulama içinde bu uyarı gösterilir.

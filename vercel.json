@@ -1,29 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "api/v1/product-search.js": {
-      "maxDuration": 60
-    },
-    "api/v1/extract-label.js": {
-      "maxDuration": 60
-    }
+    "api/v1/medicine-search.js": { "maxDuration": 60 },
+    "api/v1/label-search.js": { "maxDuration": 60 }
   },
   "rewrites": [
-    {
-      "source": "/",
-      "destination": "/api/index"
-    },
-    {
-      "source": "/v1/extract-label",
-      "destination": "/api/v1/extract-label"
-    },
-    {
-      "source": "/v1/product-search",
-      "destination": "/api/v1/product-search"
-    },
-    {
-      "source": "/v1/debug",
-      "destination": "/api/v1/debug"
-    }
+    { "source": "/", "destination": "/api/index" },
+    { "source": "/v1/medicine-search", "destination": "/api/v1/medicine-search" },
+    { "source": "/v1/label-search", "destination": "/api/v1/label-search" },
+    { "source": "/v1/debug", "destination": "/api/v1/debug" }
   ]
 }
