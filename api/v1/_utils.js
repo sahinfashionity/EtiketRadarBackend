@@ -59,18 +59,26 @@ export function parseJsonFromText(text) {
   throw new Error("AI cevabı JSON formatında değil.");
 }
 
-export async function callOpenAI(payload) {
+export async function callOpenAI(payload, timeoutMs = 30000) {
   const openAIKey = process.env.OPENAI_API_KEY;
   if (!openAIKey) throw new Error("OPENAI_API_KEY Vercel Environment Variables içinde tanımlı değil.");
 
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${openAIKey}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${openAIKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   const text = await response.text();
   let json;
