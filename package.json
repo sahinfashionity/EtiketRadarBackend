@@ -1,0 +1,13 @@
+{
+  "name": "etiket-radar-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "node local-test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
