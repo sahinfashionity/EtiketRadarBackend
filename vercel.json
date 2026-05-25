@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/v1/extract-label",
+      "destination": "/api/v1/extract-label"
+    },
+    {
+      "source": "/v1/product-search",
+      "destination": "/api/v1/product-search"
+    }
+  ]
+}
