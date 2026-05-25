@@ -1,4 +1,4 @@
-import { setCors, readJson, requireAuth, callOpenAI, outputTextFromOpenAI, parseJsonFromText, demoOffers } from "./_utils.js";
+import { setCors, readJson, requireAuth, callOpenAI, outputTextFromOpenAI, parseJsonFromText, normalizeDecimal, normalizeUrl, jsonError } from "./_utils.js";
 
 export default async function handler(req, res) {
   setCors(res);
@@ -9,16 +9,36 @@ export default async function handler(req, res) {
   try {
     const product = await readJson(req);
 
-    // OPENAI_API_KEY yoksa backend çalıştığını göstermek için demo sonuç döndürür.
     if (!process.env.OPENAI_API_KEY) {
-      return res.status(200).json({ offers: demoOffers(product) });
+      return jsonError(res, 500, "OPENAI_API_KEY Vercel Environment Variables içinde yok. Bu yüzden gerçek fiyat araması yapılamıyor.");
     }
 
-    const query = product.query || [product.brand, product.model, product.productName, product.color, product.size]
+    const query = product.query || [product.brand, product.model, product.productName, product.color, product.size, product.barcode]
       .filter(Boolean)
-      .join(" ");
+      .join(" ")
+      .trim();
 
-    const prompt = `Türkiye'de güncel online fiyat araması yap. Ürün:\n${JSON.stringify(product)}\n\nKurallar:\n- Trendyol, Hepsiburada, Amazon TR, MediaMarkt, Teknosa, N11 gibi kaynaklardan benzer ürünleri ara.\n- Aynı ürün değilse confidence düşük ver.\n- Sadece JSON döndür: {"offers":[{"storeName":"","title":"","price":0,"currencyCode":"TRY","productURL":"https://...","imageURL":null,"confidence":0.0,"shippingSummary":"","updatedAt":"ISO-8601"}]}\n- En fazla 8 sonuç döndür.\n- Fiyatı sayı olarak yaz.\n- productURL gerçek ürün/sayfa linki olsun.\n- Emin olmadığın sonuçları ekleme.`;
+    if (!query) {
+      return jsonError(res, 400, "Ürün adı/model/barkod okunamadı. Daha net fotoğrafla tekrar deneyin.");
+    }
+
+    const prompt = `Türkiye webinde güncel fiyat/satıcı araması yap ve sadece doğrudan sayfa linkleri döndür.
+
+Ürün bilgisi:
+${JSON.stringify(product, null, 2)}
+
+Arama sorgusu: ${query}
+
+Kurallar:
+- Google arama linki, reklam linki, yönlendirme linki veya boş link döndürme.
+- productURL mutlaka doğrudan ürün, mağaza ürünü, eczane/ilaç bilgi sayfası ya da fiyat sayfası olsun.
+- Aynı ürün olduğundan emin değilsen confidence düşük ver veya hiç ekleme.
+- Türkiye fiyatı ara. Fiyat TL olmalı.
+- Fiyat bulunamazsa offers boş array olsun; demo/uydurma sonuç üretme.
+- Sadece geçerli JSON döndür.
+
+JSON şeması:
+{"offers":[{"storeName":"","title":"","price":0,"currencyCode":"TRY","productURL":"https://...","imageURL":null,"confidence":0.0,"shippingSummary":"","updatedAt":"ISO-8601"}]}`;
 
     const ai = await callOpenAI({
       model: process.env.OPENAI_MODEL || "gpt-5.5",
@@ -29,26 +49,34 @@ export default async function handler(req, res) {
     });
 
     const parsed = parseJsonFromText(outputTextFromOpenAI(ai));
-    const offers = Array.isArray(parsed.offers) ? parsed.offers : [];
+    const rawOffers = Array.isArray(parsed.offers) ? parsed.offers : [];
 
-    const cleaned = offers
-      .filter(o => o && o.storeName && o.title && o.price && o.productURL)
-      .map(o => ({
-        storeName: String(o.storeName),
-        title: String(o.title),
-        price: Number(o.price),
-        currencyCode: o.currencyCode || "TRY",
-        productURL: String(o.productURL),
-        imageURL: o.imageURL || null,
-        confidence: Number(o.confidence ?? 0.7),
-        shippingSummary: o.shippingSummary || "",
-        updatedAt: o.updatedAt || new Date().toISOString()
-      }))
+    const cleaned = rawOffers
+      .map(o => {
+        const productURL = normalizeUrl(o?.productURL);
+        const price = normalizeDecimal(o?.price);
+        return {
+          storeName: String(o?.storeName || "").trim(),
+          title: String(o?.title || "").trim(),
+          price,
+          currencyCode: o?.currencyCode || "TRY",
+          productURL,
+          imageURL: normalizeUrl(o?.imageURL) || null,
+          confidence: Number(o?.confidence ?? 0.7),
+          shippingSummary: String(o?.shippingSummary || "Canlı sonuç").trim(),
+          updatedAt: o?.updatedAt || new Date().toISOString()
+        };
+      })
+      .filter(o => o.storeName && o.title && o.price && o.price > 0 && o.productURL)
       .sort((a, b) => a.price - b.price)
       .slice(0, 8);
 
-    res.status(200).json({ offers: cleaned.length ? cleaned : demoOffers(product) });
+    if (!cleaned.length) {
+      return jsonError(res, 404, "Gerçek ürün linki bulunamadı. Ürün adını/barkodu uygulamada elle düzeltip tekrar arayın.", { offers: [] });
+    }
+
+    res.status(200).json({ offers: cleaned });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return jsonError(res, 500, error.message || "Fiyat arama sırasında hata oluştu.");
   }
 }

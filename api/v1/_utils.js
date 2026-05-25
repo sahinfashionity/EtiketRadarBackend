@@ -1,6 +1,6 @@
 export function setCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 }
 
@@ -61,7 +61,7 @@ export function parseJsonFromText(text) {
 
 export async function callOpenAI(payload) {
   const openAIKey = process.env.OPENAI_API_KEY;
-  if (!openAIKey) throw new Error("OPENAI_API_KEY tanımlı değil.");
+  if (!openAIKey) throw new Error("OPENAI_API_KEY Vercel Environment Variables içinde tanımlı değil.");
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -88,34 +88,21 @@ export function normalizeDecimal(value) {
   return Number.isFinite(number) ? number : null;
 }
 
-export function demoOffers(product) {
-  const q = [product.brand, product.model, product.productName, product.color, product.size]
-    .filter(Boolean)
-    .join(" ") || product.query || "Ürün";
-  const shelf = normalizeDecimal(product.shelfPrice) || 999;
-  const base = Math.max(49, shelf);
-  return [
-    {
-      storeName: "Demo Mağaza 1",
-      title: q,
-      price: Math.round(base * 0.88),
-      currencyCode: product.currencyCode || "TRY",
-      productURL: "https://www.google.com/search?q=" + encodeURIComponent(q),
-      imageURL: null,
-      confidence: 0.72,
-      shippingSummary: "Demo sonuç",
-      updatedAt: new Date().toISOString()
-    },
-    {
-      storeName: "Demo Mağaza 2",
-      title: q + " alternatif",
-      price: Math.round(base * 0.95),
-      currencyCode: product.currencyCode || "TRY",
-      productURL: "https://www.google.com/search?q=" + encodeURIComponent(q + " fiyat"),
-      imageURL: null,
-      confidence: 0.68,
-      shippingSummary: "Demo sonuç",
-      updatedAt: new Date().toISOString()
-    }
-  ];
+export function normalizeUrl(value) {
+  if (!value) return "";
+  let url = String(value).trim();
+  if (!url) return "";
+  if (url.startsWith("//")) url = "https:" + url;
+  if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes("google.") && parsed.pathname.includes("/search")) return "";
+    return parsed.toString();
+  } catch {
+    return "";
+  }
+}
+
+export function jsonError(res, status, message, extra = {}) {
+  res.status(status).json({ error: message, ...extra });
 }
