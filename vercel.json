@@ -12,6 +12,10 @@
     {
       "source": "/v1/product-search",
       "destination": "/api/v1/product-search"
+    },
+    {
+      "source": "/v1/debug",
+      "destination": "/api/v1/debug"
     }
   ]
 }
