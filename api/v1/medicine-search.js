@@ -45,8 +45,8 @@ export default async function handler(req, res) {
     const priceQuery = `${query} fiyat TL ilaç fiyatı eczane`;
 
     const [infoSearch, priceSearch] = await Promise.allSettled([
-      tavilySearch(infoQuery, { includeDomains: MEDICINE_INFO_DOMAINS, maxResults: 8 }),
-      tavilySearch(priceQuery, { includeDomains: MEDICINE_PRICE_DOMAINS, maxResults: 8 })
+      tavilySearch(infoQuery, { includeDomains: MEDICINE_INFO_DOMAINS, maxResults: 8, includeImages: true, includeRawContent: "markdown" }),
+      tavilySearch(priceQuery, { includeDomains: MEDICINE_PRICE_DOMAINS, maxResults: 8, includeImages: true, includeRawContent: "markdown" })
     ]);
 
     const infoResults = infoSearch.status === "fulfilled" ? (infoSearch.value.results || []) : [];
@@ -67,8 +67,8 @@ ${JSON.stringify(allResults.map(r => ({ title: r.title, url: r.url, content: r.c
 Aşağıdaki JSON şemasına uygun cevap ver:
 {
   "query": "string",
-  "medicine": { "name": "string", "activeIngredient": "string", "form": "string", "packageInfo": "string" },
-  "offers": [ { "siteName": "string", "title": "string", "priceText": "string", "url": "string", "note": "string" } ],
+  "medicine": { "name": "string", "activeIngredient": "string", "form": "string", "packageInfo": "string", "imageURL": "string" },
+  "offers": [ { "siteName": "string", "title": "string", "priceText": "string", "url": "string", "imageURL": "string", "note": "string" } ],
   "usageInstructions": ["kısa madde"],
   "sideEffects": ["kısa madde"],
   "warnings": ["kısa madde"],
@@ -83,7 +83,7 @@ Fiyat yoksa priceText boş olabilir ama url doğrudan site linki olmalı; Google
     const sources = uniqByUrl(allResults.map(r => resultToSource(r, sourceTypeForUrl(r.url)))).slice(0, 10);
     const fallback = {
       query,
-      medicine: { name: query, activeIngredient: "", form: "", packageInfo: "" },
+      medicine: { name: query, activeIngredient: "", form: "", packageInfo: "", imageURL: rawOffers.find(o => o.imageURL)?.imageURL || "" },
       offers: rawOffers,
       usageInstructions: ["Kullanım için prospektüsü ve doktor/eczacı önerisini kontrol edin."],
       sideEffects: ["Yan etkiler ilaca göre değişir. Prospektüs ve resmi kaynaklar kontrol edilmelidir."],
@@ -117,7 +117,8 @@ function normalizeMedicineResponse(ai, fallback) {
       name: String(ai.medicine?.name || fallback.medicine.name || ""),
       activeIngredient: String(ai.medicine?.activeIngredient || ""),
       form: String(ai.medicine?.form || ""),
-      packageInfo: String(ai.medicine?.packageInfo || "")
+      packageInfo: String(ai.medicine?.packageInfo || ""),
+      imageURL: String(ai.medicine?.imageURL || fallback.medicine.imageURL || "")
     },
     offers: offers
       .filter(o => o && o.url && !/google\.|bing\.|duckduckgo\.|yandex\./i.test(o.url))
@@ -126,6 +127,7 @@ function normalizeMedicineResponse(ai, fallback) {
         title: String(o.title || o.siteName || "Sonuç"),
         priceText: String(o.priceText || ""),
         url: String(o.url),
+        imageURL: String(o.imageURL || ""),
         note: String(o.note || "")
       }))
       .slice(0, 8),
